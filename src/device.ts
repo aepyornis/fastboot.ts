@@ -97,7 +97,7 @@ export class FastbootDevice {
     throw new Error("Could not find device in navigator.usb.getDevices()")
   }
 
-  waitForReconnect() {
+  waitForReconnect(): Promise<boolean> {
     return new Promise((resolve, reject) => {
       navigator.usb.addEventListener(
         "connect",
@@ -165,7 +165,10 @@ export class FastbootDevice {
 
     if (this.lastPacket.status === "FAIL") {
       this.session.status = "FAIL"
-      throw new FastbootDeviceError(this.lastPacket.status, this.lastPacket.message)
+      throw new FastbootDeviceError(
+        this.lastPacket.status,
+        this.lastPacket.message,
+      )
     } else {
       return this.lastPacket
     }
@@ -187,7 +190,7 @@ export class FastbootDevice {
     return this.sendCommand(command)
   }
 
-  async getVar(variable: FastbootClientVariables): string {
+  async getVar(variable: FastbootClientVariables): Promise<string> {
     await this.exec(`getvar:${variable}`)
     return this.lastPacket.message
   }

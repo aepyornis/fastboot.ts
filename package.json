@@ -1,15 +1,14 @@
 {
-  "name": "fastboot.ts",
+  "name": "@aepyornis/fastboot.ts",
   "version": "0.0.1",
   "description": "fastboot again",
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild src/index.ts --bundle --sourcemap --format=esm --platform=browser --target=chrome121 --outfile=dist/fastboot.js",
-    "tsc": "tsc"
+    "build": "esbuild src/index.ts --bundle --sourcemap --format=esm --platform=browser --target=chrome121 --outfile=dist/fastboot.js"
   },
   "keywords": [],
-  "author": "ziggy@calyxinstitute.org",
+  "author": "Ziggy, Calyx Institute",
   "license": "MIT",
   "packageManager": "pnpm@10.8.0",
   "devDependencies": {

@@ -26,7 +26,7 @@ export class FastbootClient {
     this.logger = logger
   }
 
-  async getVar(variable: FastbootClientVariables): string {
+  async getVar(variable: string) {
     return this.fd.getVar(variable)
   }
 
@@ -46,25 +46,35 @@ export class FastbootClient {
     }
   }
 
+  async reboot() {
+    this.logger.log("rebooting")
+    await this.fd.exec("reboot")
+  }
+
   async rebootBootloader() {
+    this.logger.log("rebooting into bootloader")
     this.fd.exec("reboot-bootloader")
     await this.fd.waitForReconnect()
   }
 
   async rebootFastboot() {
+    this.logger.log("rebooting into fastboot")
     this.fd.exec("reboot-fastboot")
     await this.fd.waitForReconnect()
   }
 
   async doFlash(
     partition: string,
-    blob: blob,
+    blob: Blob,
     slot: "current" | "other" | "a" | "b" = "current",
     applyVbmeta: boolean = false,
   ) {
     // add _a or _b
     //    !(await this.isUserspace()) ?
-    if (partition !== 'avb_custom_key' && (await this.getVar(`has-slot:${partition}`)) === "yes") {
+    if (
+      partition !== "avb_custom_key" &&
+      (await this.getVar(`has-slot:${partition}`)) === "yes"
+    ) {
       if (slot === "current") {
         partition += "_" + (await this.currentSlot())
       } else if (slot === "other") {
@@ -81,7 +91,10 @@ export class FastbootClient {
     // should_flash_in_userspace() ?
     // Logical partitions need to be resized before flashing because
     // they're sized perfectly to the payload.
-    if ((await this.isUserspace()) && (await this.getVar(`is-logical:${partition}`)) === "yes") {
+    if (
+      (await this.isUserspace()) &&
+      (await this.getVar(`is-logical:${partition}`)) === "yes"
+    ) {
       await this.resizePartition(partition, totalBytes)
     }
 
@@ -196,27 +209,53 @@ export class FastbootClient {
           break
         }
         case "reboot":
-	  if (parts[0] === "fastboot") {
-	    await this.rebootFastboot()
-	  } else {
-	    await this.rebootBootloader()
-	  }
+          if (parts[0] === "fastboot") {
+            await this.rebootFastboot()
+          } else {
+            await this.rebootBootloader()
+          }
           break
-        case "update-super":
-	  await this.fd.sendCommand(`update-super`)
+        case "update-super": {
+          await this.updateSuper(entries, wipe)
           break
+        }
         case "if-wipe":
-	  if (wipe && parts[0] === 'erase' && parts[1]) {
-	    await this.erase(parts[1])
-	  }
-	  break
+          if (wipe && parts[0] === "erase" && parts[1]) {
+            await this.erase(parts[1])
+          }
+          break
         case "erase":
-	  await this.erase(parts[0])
+          await this.erase(parts[0])
           break
         default:
           throw new Error(`unknown command ${command}`)
       }
     }
+  }
+
+  async updateSuper(entries: Entry[], wipe: boolean) {
+    const superEmptyImage = entries.find(
+      (e) => e.filename === "super_empty.img",
+    )
+    if (!superEmptyImage) {
+      throw new FastbootError(`super_empty.img not found`)
+    }
+
+    let superName = "super"
+    try {
+      superName = await this.getVar("super-partition-name")
+    } catch (err) {}
+
+    // fastboot-info does this
+    // await this.rebootFastboot()
+
+    const blob = await superEmptyImage.getData(
+      new BlobWriter("application/octet-stream"),
+    )
+    const buffer = await blob.arrayBuffer()
+
+    await this.fd.transferData(buffer)
+    await this.fd.sendCommand(`update-super:${superName}${wipe ? ":wipe" : ""}`)
   }
 
   async erase(partition: string) {
@@ -270,10 +309,7 @@ export class FastbootClient {
   }
 
   static async create() {
-    return new FastbootClient(
-      await this.requestUsbDevice(),
-      window.console,
-    )
+    return new FastbootClient(await this.requestUsbDevice(), window.console)
   }
 
   static requestUsbDevice(): Promise<USBDevice> {
@@ -285,8 +321,8 @@ export class FastbootClient {
 
 async function parseBlobHeader(blob: Blob): {
   blobSize: number
-  totalByes: number
-  isSpare: boolean
+  totalBytes: number
+  isSparse: boolean
 } {
   const FILE_HEADER_SIZE = 28
   const blobSize = blob.size

@@ -1,4 +1,10 @@
-import { ZipReader, BlobReader, BlobWriter, TextWriter, Entry } from "@zip.js/zip.js"
+import {
+  ZipReader,
+  BlobReader,
+  BlobWriter,
+  TextWriter,
+  Entry,
+} from "@zip.js/zip.js"
 import type { FastbootClient } from "./client"
 
 type CommandName =
@@ -51,6 +57,8 @@ function parseInstruction(text: string): Instruction {
         options.wipe = true
       } else if (word === "--set-active=other") {
         options.setActive = "other"
+      } else if (word === '--slot-other') {
+	options.slot = 'other'
       } else if (word.slice(0, 6) === "--slot") {
         const slot = word.split("=")[1]
         if (!["current", "other", "a", "b"].includes(slot)) {
@@ -79,8 +87,8 @@ function parseInstructions(text: string): Instruction[] {
   return text
     .split("\n")
     .map((x) => x.trim())
-    .filter((x) => x !== '')
-    .filter((x) => x[0] !== '#')
+    .filter((x) => x !== "")
+    .filter((x) => x[0] !== "#")
     .map(parseInstruction)
 }
 
@@ -109,17 +117,17 @@ export class FastbootFlasher {
           new BlobWriter("application/octet-stream"),
         )
 
-	await this.client.doFlash(
+        await this.client.doFlash(
           partition,
           blob,
           slot,
           Boolean(command.options.applyVbmeta),
         )
       } else if (command.command === "reboot-bootloader") {
-	if (command.options.setActive === "other") {
-	  await this.client.setActiveOtherSlot()
-	}
-	await this.client.rebootBootloader()
+        if (command.options.setActive === "other") {
+          await this.client.setActiveOtherSlot()
+        }
+        await this.client.rebootBootloader()
       } else if (command.command === "update") {
         const nestedZipEntry = getEntry(entries, command.args[0])
         const zipBlob = await nestedZipEntry.getData(
@@ -134,7 +142,7 @@ export class FastbootFlasher {
           new TextWriter(),
         )
 
-	this.client.logger.log(`fastboot-info.txt: ${fastbootInfoText}`)
+        this.client.logger.log(`fastboot-info.txt: ${fastbootInfoText}`)
 
         // fastboot -w update image-lynx-bp1a.250305.019.zip
         await this.client.fastbootInfo(
@@ -151,10 +159,10 @@ export class FastbootFlasher {
           throw new Error(`Unknown command`)
         }
       } else if (command.command === "getvar") {
-	const clientVar = await this.client.getVar(command.args[0])
-	this.client.logger(`getVar(${command.args[0]}) => ${clientVar}`)
+        const clientVar = await this.client.getVar(command.args[0])
+        this.client.logger(`getVar(${command.args[0]}) => ${clientVar}`)
       } else if (command.command === "erase") {
-	await this.client.erase(command.args[0])
+        await this.client.erase(command.args[0])
       } else if (command.command === "sleep") {
         const ms = command.args[0] ? parseInt(command.args[0]) * 1000 : 5000
         await new Promise((resolve) => setTimeout(resolve, ms))
