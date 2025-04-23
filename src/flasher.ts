@@ -57,8 +57,8 @@ function parseInstruction(text: string): Instruction {
         options.wipe = true
       } else if (word === "--set-active=other") {
         options.setActive = "other"
-      } else if (word === '--slot-other') {
-	options.slot = 'other'
+      } else if (word === "--slot-other") {
+        options.slot = "other"
       } else if (word.slice(0, 6) === "--slot") {
         const slot = word.split("=")[1]
         if (!["current", "other", "a", "b"].includes(slot)) {

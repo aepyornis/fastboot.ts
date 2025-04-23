@@ -101,7 +101,10 @@ export class FastbootDevice {
     return new Promise((resolve, reject) => {
       navigator.usb.addEventListener(
         "connect",
-        async () => {
+        async (event) => {
+          this.logger.log(
+            `waitForReconnect: device connected ${event.device.productName}`,
+          )
           try {
             await this.reconnect()
             resolve(true)

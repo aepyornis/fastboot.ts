@@ -32,7 +32,6 @@ export class FastbootClient {
 
   async lock() {
     await this.flashing("lock")
-    await this.fd.waitForReconnect()
     if (await this.unlocked()) {
       throw new FastbootError("failed to lock device")
     }
@@ -40,7 +39,6 @@ export class FastbootClient {
 
   async unlock() {
     await this.flashing("unlock")
-    await this.fd.waitForReconnect()
     if (await this.locked()) {
       throw new FastbootError("failed to unlock device")
     }
