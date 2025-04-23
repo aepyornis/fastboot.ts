@@ -1,6 +1,6 @@
 import { BlobWriter, Entry } from "@zip.js/zip.js"
 import { IMAGES } from "./images"
-import { parseFileHeader, splitBlob, fromRaw } from "./sparse"
+import { parseBlobHeader, splitBlob, fromRaw } from "./sparse"
 import { FastbootDevice } from "./device"
 
 export class FastbootError extends Error {}
@@ -147,14 +147,9 @@ export class FastbootClient {
     await this.fd.waitForReconnect()
   }
 
-  // run directions, typically the contents of fastboot-info.txt
-  // retriving the flashing data from files in entries
-  async fastbootInfo(
-    entries: Entry[],
-    directions: string,
-    wipe: boolean = false,
-  ) {
-    const lines = directions
+  // run text, typically the contents of fastboot-info.txt
+  async fastbootInfo(entries: Entry[], text: string, wipe: boolean = false) {
+    const lines = text
       .split("\n")
       .map((x) => x.trim())
       .filter((l) => !(l == "" || l[0] == "#" || l.slice(0, 7) == "version"))
@@ -317,28 +312,4 @@ export class FastbootClient {
       filters: [FastbootUSBDeviceFilter],
     })
   }
-}
-
-async function parseBlobHeader(blob: Blob): {
-  blobSize: number
-  totalBytes: number
-  isSparse: boolean
-} {
-  const FILE_HEADER_SIZE = 28
-  const blobSize = blob.size
-  let totalBytes = blobSize
-  let isSparse = false
-
-  try {
-    const fileHeader = await blob.slice(0, FILE_HEADER_SIZE).arrayBuffer()
-    const sparseHeader = parseFileHeader(fileHeader)
-    if (sparseHeader !== null) {
-      totalBytes = sparseHeader.blocks * sparseHeader.blockSize
-      isSparse = true
-    }
-  } catch (error) {
-    console.debug(error)
-    // ImageError = invalid, so keep blob.size
-  }
-  return { blobSize, totalBytes, isSparse }
 }
