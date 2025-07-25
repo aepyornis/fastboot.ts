@@ -1,19 +1,14 @@
 # fastboot.ts
 
 ```sh
-pnpm install
-pnpm run build
+npm install
+npm run build
 ```
 
     src/device.ts handles interfacing with WebUSB and implements fastboot protocol
     src/client.ts implements higher level API, similar to fastboot cli tool
     src/flasher.ts flashes zip image from a list of instructions
     src/sparse.ts sparse image utilities Copyright (c) 2021 Danny Lin <danny@kdrag0n.dev>
-
-TODO
-
-    --apply-vbmeta
-    repack_ramdisk ?
 
 ```js
 import { FastbootClient, FashbootFlasher } from "@aepyornis/fastboot.ts"
