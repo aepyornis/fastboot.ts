@@ -1,6 +1,6 @@
 {
   "name": "@aepyornis/fastboot.ts",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Fastboot using WebUSB",
   "main": "src/index.ts",
   "scripts": {
