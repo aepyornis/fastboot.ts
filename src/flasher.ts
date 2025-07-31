@@ -101,6 +101,21 @@ export class FastbootFlasher {
     this.reader = new ZipReader(new BlobReader(blob))
   }
 
+  // parses and runs flash-all.sh. it ignores all shell commands
+  // except fastboot or sleep
+  async runFlashAll() {
+    const entries: Entry[] = await this.reader.getEntries()
+    const flashAllSh = await getEntry(entries, "flash-all.sh").getData(new TextWriter())
+
+    const instructions = flashAllSh
+      .split("\n")
+      .map((x) => x.trim())
+      .filter(x => (x.slice(0,9) === "fastboot " || x.slice(0,5) === "sleep"))
+      .join("\n")
+
+    return this.run(instructions)
+  }
+
   async run(instructions: text) {
     const entries: Entry[] = await this.reader.getEntries() // io with factory.zip
     const commands: Instruction[] = parseInstructions(instructions)
