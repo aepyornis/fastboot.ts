@@ -105,12 +105,14 @@ export class FastbootFlasher {
   // except fastboot or sleep
   async runFlashAll() {
     const entries: Entry[] = await this.reader.getEntries()
-    const flashAllSh = await getEntry(entries, "flash-all.sh").getData(new TextWriter())
+    const flashAllSh = await getEntry(entries, "flash-all.sh").getData(
+      new TextWriter(),
+    )
 
     const instructions = flashAllSh
       .split("\n")
       .map((x) => x.trim())
-      .filter(x => (x.slice(0,9) === "fastboot " || x.slice(0,5) === "sleep"))
+      .filter((x) => x.slice(0, 9) === "fastboot " || x.slice(0, 5) === "sleep")
       .join("\n")
 
     return this.run(instructions)

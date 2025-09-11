@@ -1,7 +1,7 @@
 import { BlobWriter, Entry } from "@zip.js/zip.js"
 import { IMAGES } from "./images"
 import { parseBlobHeader, splitBlob, fromRaw } from "./sparse"
-import { FastbootDevice } from "./device"
+import { FastbootDevice, FastbootDeviceError } from "./device"
 
 export class FastbootError extends Error {}
 
@@ -20,14 +20,25 @@ interface Logger {
 export class FastbootClient {
   fd: FastbootDevice
   logger: Logger
+  var_cache: Object
 
   constructor(usb_device: USBDevice, logger: Logger = window.console) {
     this.fd = new FastbootDevice(usb_device, logger)
     this.logger = logger
+    this.var_cache = {}
   }
 
   async getVar(variable: string) {
     return this.fd.getVar(variable)
+  }
+
+  async getVarCache(variable: string) {
+    if (this.var_cache[variable]) {
+      return this.var_cache[variable]
+    } else {
+      this.var_cache[variable] = await this.getVar(variable)
+      return this.var_cache[variable]
+    }
   }
 
   async lock() {
@@ -139,7 +150,6 @@ export class FastbootClient {
     ) {
       return true
     }
-
     this.logger.log(`ACTION NEEDED: flashing ${command}`)
     await this.fd.exec(`flashing ${command}`)
     await this.fd.waitForReconnect()
@@ -273,11 +283,21 @@ export class FastbootClient {
   }
 
   async unlocked() {
-    return (await this.getVar("unlocked")) === "yes"
+    const product = await this.getVarCache("product")
+    if (product === "bangkk") {
+      return (await this.getVar("securestate")) === "flashing_unlocked"
+    } else {
+      return (await this.getVar("unlocked")) === "yes"
+    }
   }
 
   async locked() {
-    return (await this.getVar("unlocked")) === "no"
+    const product = await this.getVarCache("product")
+    if (product === "bangkk") {
+      return (await this.getVar("securestate")) === "flashing_locked"
+    } else {
+      return (await this.getVar("unlocked")) === "no"
+    }
   }
 
   async currentSlot() {
@@ -309,18 +329,18 @@ export class FastbootClient {
 
     for (let packet of client.fd.session.packets) {
       if (packet.command) {
-	continue
-      } else if (packet.status === 'INFO') {
-	let message = packet.message.replace('(bootloader)', '').trim()
-	if (message === "Unlock data:") {
-	  continue
-	} else {
-	  data += message
-	}
-      } else if (packet.status === 'OKAY') {
-	break
+        continue
+      } else if (packet.status === "INFO") {
+        let message = packet.message.replace("(bootloader)", "").trim()
+        if (message === "Unlock data:") {
+          continue
+        } else {
+          data += message
+        }
+      } else if (packet.status === "OKAY") {
+        break
       } else {
-	throw new Error(`packet status == ${packet.status}`)
+        throw new Error(`packet status == ${packet.status}`)
       }
     }
 
