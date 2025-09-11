@@ -301,6 +301,32 @@ export class FastbootClient {
     return (await this.getVar("is-userspace")) === "yes"
   }
 
+  // tested on bangkk only
+  async getUnlockData() {
+    await client.fd.exec(`oem get_unlock_data`)
+
+    let data = ""
+
+    for (let packet of client.fd.session.packets) {
+      if (packet.command) {
+	continue
+      } else if (packet.status === 'INFO') {
+	let message = packet.message.replace('(bootloader)', '').trim()
+	if (message === "Unlock data:") {
+	  continue
+	} else {
+	  data += message
+	}
+      } else if (packet.status === 'OKAY') {
+	break
+      } else {
+	throw new Error(`packet status == ${packet.status}`)
+      }
+    }
+
+    return data
+  }
+
   static async create() {
     return new FastbootClient(await this.requestUsbDevice(), window.console)
   }
