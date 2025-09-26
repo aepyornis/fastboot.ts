@@ -153,9 +153,9 @@ export class FastbootClient {
     this.logger.log(`ACTION NEEDED: flashing ${command}`)
     await this.fd.exec(`flashing ${command}`)
 
-    // some devices register before we have a chance to call
+    // some devices might register before we have a chance to call
     // waitForReconnect()
-    if ((await navigator.usb.getDevices()).length > 0) {
+    if (this.getVarCache("product") === "bangkk" && (await navigator.usb.getDevices()).length > 0) {
       await this.fd.reconnect()
     } else {
       await this.fd.waitForReconnect()
