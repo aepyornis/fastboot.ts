@@ -152,7 +152,14 @@ export class FastbootClient {
     }
     this.logger.log(`ACTION NEEDED: flashing ${command}`)
     await this.fd.exec(`flashing ${command}`)
-    await this.fd.waitForReconnect()
+
+    // some devices register before we have a chance to call
+    // waitForReconnect()
+    if ((await navigator.usb.getDevices()).length > 0) {
+      await this.fd.reconnect()
+    } else {
+      await this.fd.waitForReconnect()
+    }
   }
 
   // run text, typically the contents of fastboot-info.txt
