@@ -13,7 +13,11 @@ npm run build
     src/sparse.ts sparse image utilities Copyright (c) 2021 Danny Lin <danny@kdrag0n.dev>
 
 ```js
-import { FastbootClient, FastbootFlasher } from "@aepyornis/fastboot.ts"
+import {
+  FastbootDevice,
+  FastbootClient,
+  FastbootFlasher,
+} from "@aepyornis/fastboot.ts"
 
 const client = await FastbootClient.create()
 
