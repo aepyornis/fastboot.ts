@@ -143,6 +143,10 @@ export class FastbootFlasher {
       } else if (command.command === "reboot-bootloader") {
         if (command.options.setActive === "other") {
           await this.client.setActiveOtherSlot()
+        } else if (command.options.setActiveb === "a") {
+          await this.client.fd.exec("set_active:a")
+        } else if (command.options.setActive === "b") {
+          await this.client.fd.exec("set_active:b")
         }
         await this.client.rebootBootloader()
       } else if (command.command === "update") {
@@ -183,6 +187,19 @@ export class FastbootFlasher {
       } else if (command.command === "sleep") {
         const ms = command.args[0] ? parseInt(command.args[0]) * 1000 : 5000
         await new Promise((resolve) => setTimeout(resolve, ms))
+        // do_oem_command in cpp is raw command?
+      } else if (command.command === "oem") {
+        // motorola setting that seems to do nothing useful here?
+        if (
+          command.args[0] === "fb_mode_set" ||
+          command.args[0] === "fb_mode_clear"
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 10))
+        } else {
+          throw new Error(
+            `Fastboot oem command ${command.args[0]} not implemented`,
+          )
+        }
       } else {
         throw new Error(`Fastboot command ${command.command} not implemented`)
       }
