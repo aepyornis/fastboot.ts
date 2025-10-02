@@ -111,6 +111,7 @@ export class FastbootFlasher {
       new TextWriter(),
     )
 
+    this.client.logger.log("flash-all.sh\n" + flashAllSh)
     const instructions = flashAllSh
       .split("\n")
       .map((x) => x.trim())
@@ -123,7 +124,6 @@ export class FastbootFlasher {
   async run(instructions: text) {
     const entries: Entry[] = await this.reader.getEntries() // io with factory.zip
     const commands: Instruction[] = parseInstructions(instructions)
-    console.log(commands)
 
     for (const command of commands) {
       this.client.logger.log(`‣ ${JSON.stringify(command)}`)
@@ -191,7 +191,7 @@ export class FastbootFlasher {
         await new Promise((resolve) => setTimeout(resolve, ms))
         // do_oem_command in cpp is raw command?
       } else if (command.command === "oem") {
-        // motorola setting that does nothing useful here?
+        // ignore motorola oem commands that do nothing useful?
         if (
           command.args[0] === "fb_mode_set" ||
           command.args[0] === "fb_mode_clear"

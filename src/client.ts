@@ -11,6 +11,8 @@ const FastbootUSBDeviceFilter = {
   protocolCode: 0x03,
 }
 
+const MotorolaProducts = ["bangkk", "fogos"]
+
 interface Logger {
   log(message: string): void
 }
@@ -135,7 +137,7 @@ export class FastbootClient {
     )
   }
 
-  // fb->ResizePartition ?
+  // fb->ResizePartition
   async resizePartition(name: string, totalBytes: number) {
     // As per AOSP fastboot, we reset the partition to 0 bytes first
     // to optimize extent allocation before setting the actual size.
@@ -155,7 +157,7 @@ export class FastbootClient {
 
     // some devices might register before we have a chance to call
     // waitForReconnect()
-    if (this.getVarCache("product") === "bangkk" && (await navigator.usb.getDevices()).length > 0) {
+    if (MotorolaProducts.includes(await this.getVarCache("product")) && (await navigator.usb.getDevices()).length > 0) {
       await this.fd.reconnect()
     } else {
       await this.fd.waitForReconnect()
@@ -290,8 +292,7 @@ export class FastbootClient {
   }
 
   async unlocked() {
-    const product = await this.getVarCache("product")
-    if (product === "bangkk") {
+    if (MotorolaProducts.includes(await this.getVarCache("product"))) {
       return (await this.getVar("securestate")) === "flashing_unlocked"
     } else {
       return (await this.getVar("unlocked")) === "yes"
@@ -299,8 +300,7 @@ export class FastbootClient {
   }
 
   async locked() {
-    const product = await this.getVarCache("product")
-    if (product === "bangkk") {
+    if (MotorolaProducts.includes(await this.getVarCache("product"))) {
       return (await this.getVar("securestate")) === "flashing_locked"
     } else {
       return (await this.getVar("unlocked")) === "no"
