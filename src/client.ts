@@ -69,8 +69,19 @@ export class FastbootClient {
   }
 
   async rebootFastboot() {
+    const serialNumber = this.fd.serialNumber
     this.logger.log("rebooting into fastboot")
-    this.fd.exec("reboot-fastboot")
+    await this.fd.exec("reboot-fastboot")
+    // Devices may not automatically reconnect after entering fastbootd, so
+    // after 30 seconds if the device has not been connected we prompt again.
+    setTimeout(async () => {
+      const devices = await navigator.usb.getDevices()
+      if (!devices.some(device => device.serialNumber === serialNumber)) {
+	this.logger.log("Device did not reconnect, requesting new device")
+	await this.requestUsbDevice()
+      }
+    }, 30000)
+
     await this.fd.waitForReconnect()
   }
 
