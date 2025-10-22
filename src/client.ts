@@ -60,11 +60,12 @@ export class FastbootClient {
   async reboot() {
     this.logger.log("rebooting")
     await this.fd.exec("reboot")
+    await this.fd.waitForReconnect()
   }
 
   async rebootBootloader() {
     this.logger.log("rebooting into bootloader")
-    this.fd.exec("reboot-bootloader")
+    await this.fd.exec("reboot-bootloader")
     await this.fd.waitForReconnect()
   }
 
@@ -75,13 +76,8 @@ export class FastbootClient {
     // Devices may not automatically reconnect after entering fastbootd, so
     // after 30 seconds if the device has not been connected we prompt again.
     setTimeout(async () => {
-      const devices = await navigator.usb.getDevices()
-      if (!devices.some(device => device.serialNumber === serialNumber)) {
-	this.logger.log("Device did not reconnect, requesting new device")
-	await this.requestUsbDevice()
-      }
+      await FastbootClient.findOrRequestDevice(serialNumber)
     }, 30000)
-
     await this.fd.waitForReconnect()
   }
 
@@ -165,14 +161,7 @@ export class FastbootClient {
     }
     this.logger.log(`ACTION NEEDED: flashing ${command}`)
     await this.fd.exec(`flashing ${command}`)
-
-    // some devices might register before we have a chance to call
-    // waitForReconnect()
-    if (MotorolaProducts.includes(await this.getVarCache("product")) && (await navigator.usb.getDevices()).length > 0) {
-      await this.fd.reconnect()
-    } else {
-      await this.fd.waitForReconnect()
-    }
+    await this.fd.waitForReconnect()
   }
 
   // run text, typically the contents of fastboot-info.txt
@@ -369,9 +358,19 @@ export class FastbootClient {
     return new FastbootClient(await this.requestUsbDevice(), window.console)
   }
 
-  static requestUsbDevice(): Promise<USBDevice> {
+  static async requestUsbDevice(): Promise<USBDevice> {
     return window.navigator.usb.requestDevice({
       filters: [FastbootUSBDeviceFilter],
     })
   }
+
+  static async findOrRequestDevice(serialNumber: string): Promise<Void> {
+    for (const device of (await navigator.usb.getDevices())) {
+      if (device.serialNumber === serialNumber) {
+	return device
+      }
+    }
+    return await FastbootClient.requestUsbDevice()
+  }
+
 }
