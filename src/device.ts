@@ -34,11 +34,11 @@ export class FastbootDevice {
   serialNumber: string;
   in: USBEndpoint
   out: USBEndpoint
-  session: FastbootSession
+  session: FastbootSession | null
   sessions: FastbootSession[]
   logger: Logger
 
-  constructor(device, logger = window.console) {
+  constructor(device: USBDevice, logger: Logger = window.console) {
     this.device = device
     this.serialNumber = this.device.serialNumber
     this.session = null
@@ -98,9 +98,7 @@ export class FastbootDevice {
   }
 
   async waitForReconnect(): Promise<boolean> {
-    const devices = await navigator.usb.getDevices()
-
-    if (devices.some(device => device.serialNumber === serialNumber)) {
+    if ((await navigator.usb.getDevices()).some(device => device.serialNumber === this.serialNumber)) {
       await this.reconnect()
       return Promise.resolve(true)
     } else {
@@ -200,12 +198,15 @@ export class FastbootDevice {
     return this.sendCommand(command)
   }
 
-  async getVar(variable: FastbootClientVariables): Promise<string> {
+  async getVar(variable: string): Promise<string> {
     await this.exec(`getvar:${variable}`)
     return this.lastPacket.message
   }
 
   get lastPacket() {
+    if (!this.session || this.session.packets.length === 0) {
+      return null
+    }
     return this.session.packets[this.session.packets.length - 1]
   }
 
