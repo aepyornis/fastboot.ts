@@ -60,12 +60,14 @@ export class FastbootClient {
   async reboot() {
     this.logger.log("rebooting")
     await this.fd.exec("reboot")
+    await new Promise((resolve) => setTimeout(resolve, 5000))
     await this.fd.waitForReconnect()
   }
 
   async rebootBootloader() {
     this.logger.log("rebooting into bootloader")
     await this.fd.exec("reboot-bootloader")
+    await new Promise((resolve) => setTimeout(resolve, 5000))
     await this.fd.waitForReconnect()
   }
 
@@ -73,6 +75,7 @@ export class FastbootClient {
     const serialNumber = this.fd.serialNumber
     this.logger.log("rebooting into fastboot")
     await this.fd.exec("reboot-fastboot")
+    await new Promise((resolve) => setTimeout(resolve, 5000))
     // Devices may not automatically reconnect after entering fastbootd, so
     // after 30 seconds if the device has not been connected we prompt again.
     setTimeout(async () => {
@@ -161,6 +164,7 @@ export class FastbootClient {
     }
     this.logger.log(`ACTION NEEDED: flashing ${command}`)
     await this.fd.exec(`flashing ${command}`)
+    await new Promise((resolve) => setTimeout(resolve, 5000))
     await this.fd.waitForReconnect()
   }
 

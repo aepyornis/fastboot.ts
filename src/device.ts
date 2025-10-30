@@ -98,16 +98,20 @@ export class FastbootDevice {
   }
 
   async waitForReconnect(): Promise<boolean> {
-    if ((await navigator.usb.getDevices()).some(device => device.serialNumber === this.serialNumber)) {
+    const devices = await navigator.usb.getDevices()
+
+    if (devices.some(device => device.serialNumber === this.serialNumber)) {
+      this.logger.log(`waitForReconnect: Found device ${this.serialNumber}`)
       await this.reconnect()
       return Promise.resolve(true)
     } else {
+      this.logger.log(`waitForReconnect: Adding navigator.usb event listener`)
       return new Promise((resolve, reject) => {
 	navigator.usb.addEventListener(
           "connect",
           async (event) => {
             this.logger.log(
-              `waitForReconnect: device connected ${event.device.productName}`,
+              `waitForReconnect: Device connected ${event.device.productName}`,
             )
             try {
               await this.reconnect()
