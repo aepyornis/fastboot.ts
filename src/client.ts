@@ -11,7 +11,7 @@ const FastbootUSBDeviceFilter = {
   protocolCode: 0x03,
 }
 
-const MotorolaProducts = ["bangkk", "fogos"]
+const MotorolaProducts = ["fogo", "fogos", "bangkk", "rhode", "hawao", "devon"]
 
 interface Logger {
   log(message: string): void
