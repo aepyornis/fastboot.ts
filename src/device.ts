@@ -9,13 +9,22 @@ type ResponsePacket = {
 }
 
 type FastbootSession = {
-  phase: 1 | 2 | 3 | 4 | 5
+  // phase: 1 | 2 | 3 | 4 | 5
   status: null | "OKAY" | "FAIL"
   packets: (CommandPacket | ResponsePacket)[]
 }
 
 interface Logger {
   log(message: string): void
+}
+
+export class FastbootUsbConnectionError extends Error {
+  constructor(
+    message: string = "Could not find device in navigator.usb.getDevices()",
+  ) {
+    super(message)
+    this.name = "FastbootUsbConnectionError"
+  }
 }
 
 export class FastbootDeviceError extends Error {
@@ -34,14 +43,20 @@ export class FastbootDevice {
   serialNumber: string;
   in: USBEndpoint
   out: USBEndpoint
-  session: FastbootSession | null
+  session: FastbootSession
   sessions: FastbootSession[]
   logger: Logger
 
   constructor(device: USBDevice, logger: Logger = window.console) {
+    if (!device.serialNumber) {
+      throw new Error(
+        "Access to USBDevice#serialNumber is necessary but stored only in temporary memory.",
+      )
+    }
+
     this.device = device
-    this.serialNumber = this.device.serialNumber
-    this.session = null
+    this.serialNumber = device.serialNumber
+    this.session = { status: null, packets: [] }
     this.sessions = []
     this.logger = logger
     this.setup()
@@ -51,7 +66,7 @@ export class FastbootDevice {
   setup() {
     if (this.device.configurations.length > 1) {
       console.warn(
-        `device has ${device.configurations.length} configurations. Using the first one.`,
+        `device has ${this.device.configurations.length} configurations. Using the first one.`,
       )
     }
 
@@ -84,49 +99,67 @@ export class FastbootDevice {
 
   // some commands (like "flashing lock") will disconnect the device
   // we have to re-assign this.device after it reconnects
-  async reconnect() {
+  async reconnect(): Promise<boolean> {
     const devices = await navigator.usb.getDevices()
     for (const device of devices) {
       if (device.serialNumber === this.serialNumber) {
+        this.logger.log(`reconnect: Found device ${device.serialNumber}`)
         this.device = device
         this.setup()
         await this.connect()
         return true
       }
     }
-    throw new Error("Could not find device in navigator.usb.getDevices()")
+    throw new FastbootUsbConnectionError()
   }
 
+  // The install requires reboots and it's important we pause the
+  // install and reset the usb device after it reconnects
   async waitForReconnect(): Promise<boolean> {
-    const devices = await navigator.usb.getDevices()
+    try {
+      this.logger("waitForReconnect try reconnect()")
+      return await this.reconnect()
+    } catch (e) {
+      this.logger.log("waitForReconnect wait 3 seconds")
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+    }
 
-    if (devices.some(device => device.serialNumber === this.serialNumber)) {
-      this.logger.log(`waitForReconnect: Found device ${this.serialNumber}`)
-      await this.reconnect()
-      return Promise.resolve(true)
-    } else {
-      this.logger.log(`waitForReconnect: Adding navigator.usb event listener`)
-      return new Promise((resolve, reject) => {
-	navigator.usb.addEventListener(
-          "connect",
-          async (event) => {
-            this.logger.log(
-              `waitForReconnect: Device connected ${event.device.productName}`,
-            )
-            try {
-              await this.reconnect()
-              resolve(true)
-            } catch (e) {
-              reject(e)
-            }
-          },
-          { once: true },
-	)
-      })
+    try {
+      return await this.reconnect()
+    } catch (e) {
+      if (e instanceof FastbootUsbConnectionError) {
+        this.logger.log("waitForReconnect wait 30 seconds")
+        await new Promise((resolve) => setTimeout(resolve, 30000))
+      } else {
+        throw e
+      }
+    }
+
+    // try once more then wait for navigator.usb connect event
+    try {
+      return await this.reconnect()
+    } catch (e) {
+      if (e instanceof FastbootUsbConnectionError) {
+        return new Promise((resolve, reject) => {
+          this.logger.log("adding navigator.usb connect listener")
+          navigator.usb.addEventListener(
+            "connect",
+            async () => {
+              try {
+                await this.reconnect()
+                resolve(true)
+              } catch (e) {
+                reject(e)
+              }
+            },
+            { once: true },
+          )
+        })
+      }
     }
   }
 
-  async getPacket(): ResponsePacket {
+  async getPacket(): Promise<ResponsePacket> {
     this.logger.log(`receiving packet from endpoint ${this.in.endpointNumber}`)
     const inPacket = await this.device.transferIn(this.in.endpointNumber, 256)
     const inPacketText = new TextDecoder().decode(inPacket.data)
@@ -163,7 +196,7 @@ export class FastbootDevice {
     } while (["INFO", "TEXT"].includes(response.status))
   }
 
-  async sendCommand(text): ResponsePacket {
+  async sendCommand(text: string): Promise<ResponsePacket> {
     this.session.packets.push({ command: text } as CommandPacket)
     const outPacket = new TextEncoder().encode(text)
     this.logger.log(
@@ -173,6 +206,7 @@ export class FastbootDevice {
       this.out.endpointNumber,
       outPacket,
     )
+
     await this.getPackets()
 
     if (this.lastPacket.status === "FAIL") {
@@ -186,17 +220,14 @@ export class FastbootDevice {
     }
   }
 
-  async exec(command): ResponsePacket {
+  async exec(command: string): Promise<ResponsePacket> {
     if (this.isActive) {
       throw new Error("fastboot device is busy")
     } else if (!this.device.opened) {
       await this.connect()
     }
 
-    if (this.session) {
-      this.sessions.push(this.session)
-    }
-
+    this.sessions.push(this.session)
     this.session = { status: null, packets: [] }
 
     return this.sendCommand(command)
@@ -208,18 +239,19 @@ export class FastbootDevice {
   }
 
   get lastPacket() {
-    if (!this.session || this.session.packets.length === 0) {
+    if (this.session.packets.length === 0) {
       return null
+    } else {
+      return this.session.packets[this.session.packets.length - 1]
     }
-    return this.session.packets[this.session.packets.length - 1]
   }
 
   get isActive() {
-    if (!this.session || this.session.packets.length === 0) {
+    if (this.session.packets.length === 0) {
       return false
+    } else {
+      return !["FAIL", "OKAY"].includes(this.lastPacket.status)
     }
-
-    return !["FAIL", "OKAY"].includes(this.lastPacket.status)
   }
 
   // send buffer to phone

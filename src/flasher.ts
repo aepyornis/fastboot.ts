@@ -58,7 +58,7 @@ function parseInstruction(text: string): Instruction {
       } else if (word === "--set-active=other") {
         options.setActive = "other"
       } else if (word === "--set-active=a" || word === "--set-active=b") {
-	options.setActive = word.slice(-1)
+        options.setActive = word.slice(-1)
       } else if (word === "--slot-other") {
         options.slot = "other"
       } else if (word.slice(0, 6) === "--slot") {

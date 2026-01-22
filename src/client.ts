@@ -17,17 +17,21 @@ interface Logger {
   log(message: string): void
 }
 
+interface KeyValueDict {
+  [key: string]: string
+}
+
 // higher level API to interact with fastboot device
 // translates CLI commands to
 export class FastbootClient {
   fd: FastbootDevice
   logger: Logger
-  var_cache: Object
+  var_cache: KeyValueDict
 
   constructor(usb_device: USBDevice, logger: Logger = window.console) {
     this.fd = new FastbootDevice(usb_device, logger)
     this.logger = logger
-    this.var_cache = {}
+    this.var_cache = {} as KeyValueDict
   }
 
   async getVar(variable: string) {
@@ -72,7 +76,6 @@ export class FastbootClient {
   }
 
   async rebootFastboot() {
-    const serialNumber = this.fd.serialNumber
     this.logger.log("rebooting into fastboot")
     await this.fd.exec("reboot-fastboot")
     await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -363,13 +366,12 @@ export class FastbootClient {
     })
   }
 
-  static async findOrRequestDevice(serialNumber: string): Promise<Void> {
-    for (const device of (await navigator.usb.getDevices())) {
+  static async findOrRequestDevice(serialNumber: string): Promise<USBDevice> {
+    for (const device of await navigator.usb.getDevices()) {
       if (device.serialNumber === serialNumber) {
-	return device
+        return device
       }
     }
     return await FastbootClient.requestUsbDevice()
   }
-
 }

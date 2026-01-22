@@ -65,6 +65,12 @@ export interface SparseChunk {
   data: Blob | null // to be populated by consumer
 }
 
+export interface BlobHeader {
+  blobSize: number
+  totalBytes: number
+  isSparse: boolean
+}
+
 class BlobBuilder {
   private blob: Blob
   private type: string
@@ -383,11 +389,7 @@ export async function* splitBlob(blob: Blob, splitSize: number) {
   }
 }
 
-export async function parseBlobHeader(blob: Blob): {
-  blobSize: number
-  totalBytes: number
-  isSparse: boolean
-} {
+export async function parseBlobHeader(blob: Blob): Promise<BlobHeader> {
   const FILE_HEADER_SIZE = 28
   const blobSize = blob.size
   let totalBytes = blobSize
