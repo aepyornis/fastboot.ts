@@ -227,6 +227,7 @@ export async function fromRaw(blob: Blob): Promise<Blob> {
     chunks.push({
       type: ChunkType.Raw,
       blocks: chunkSize / header.blockSize,
+      dataBytes: chunkSize,
       data: blob.slice(0, chunkSize),
     })
     blob = blob.slice(chunkSize)
@@ -376,7 +377,7 @@ export async function* splitBlob(blob: Blob, splitSize: number) {
   // Finish the final split if necessary
   if (
     splitChunks.length > 0 &&
-    (splitChunks.length > 1 || splitChunks[0].type !== ChunkType.Skip)
+    (splitChunks.length > 1 || splitChunks[0]?.type !== ChunkType.Skip)
   ) {
     const splitImage = await createImage(header, splitChunks)
     console.debug(

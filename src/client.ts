@@ -1,7 +1,7 @@
-import { BlobWriter, Entry } from "@zip.js/zip.js"
+import { BlobWriter, type FileEntry } from "@zip.js/zip.js"
 import { IMAGES } from "./images"
 import { parseBlobHeader, splitBlob, fromRaw } from "./sparse"
-import { FastbootDevice, FastbootDeviceError } from "./device"
+import { FastbootDevice } from "./device"
 
 export class FastbootError extends Error {}
 
@@ -86,7 +86,7 @@ export class FastbootClient {
     partition: string,
     blob: Blob,
     slot: "current" | "other" | "a" | "b" = "current",
-    applyVbmeta: boolean = false,
+    applyVbmeta: boolean = false, // TODO: Implement flashing vbmeta
   ) {
     // add _a or _b
     //    !(await this.isUserspace()) ?
@@ -167,7 +167,11 @@ export class FastbootClient {
   }
 
   // run text, typically the contents of fastboot-info.txt
-  async fastbootInfo(entries: Entry[], text: string, wipe: boolean = false) {
+  async fastbootInfo(
+    entries: FileEntry[],
+    text: string,
+    wipe: boolean = false,
+  ) {
     const lines = text
       .split("\n")
       .map((x) => x.trim())
@@ -219,7 +223,12 @@ export class FastbootClient {
           this.logger.log(
             `flashing partition ${partition} with ${filename} from nested zip`,
           )
-          await this.doFlash(partition, blob, slot, applyVbmeta)
+          await this.doFlash(
+            partition!, // TODO: Assert this better
+            blob,
+            slot as "current" | "b" | "a" | "other" | undefined, // TODO: Assert this better
+            applyVbmeta,
+          )
           break
         }
         case "reboot":
@@ -239,7 +248,7 @@ export class FastbootClient {
           }
           break
         case "erase":
-          await this.erase(parts[0])
+          await this.erase(parts[0]!) // TODO: Should not assume parts to at least have 1 ele
           break
         default:
           throw new Error(`unknown command ${command}`)
@@ -247,7 +256,7 @@ export class FastbootClient {
     }
   }
 
-  async updateSuper(entries: Entry[], wipe: boolean) {
+  async updateSuper(entries: FileEntry[], wipe: boolean) {
     const superEmptyImage = entries.find(
       (e) => e.filename === "super_empty.img",
     )
@@ -258,7 +267,10 @@ export class FastbootClient {
     let superName = "super"
     try {
       superName = await this.getVar("super-partition-name")
-    } catch (err) {}
+    } catch (err) {
+      // TODO: Maybe log this error somewhere?
+      void err
+    }
 
     // fastboot-info does this
     // await this.rebootFastboot()
@@ -332,15 +344,15 @@ export class FastbootClient {
 
   // tested on bangkk only
   async getUnlockData() {
-    await client.fd.exec(`oem get_unlock_data`)
+    await this.fd.exec(`oem get_unlock_data`)
 
     let data = ""
 
-    for (let packet of client.fd.session.packets) {
-      if (packet.command) {
+    for (const packet of this.fd.session.packets) {
+      if ("command" in packet) {
         continue
       } else if (packet.status === "INFO") {
-        let message = packet.message.replace("(bootloader)", "").trim()
+        const message = packet.message?.replace("(bootloader)", "").trim()
         if (message === "Unlock data:") {
           continue
         } else {

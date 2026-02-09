@@ -1,14 +1,26 @@
 {
   "compilerOptions": {
-    "target": "es2016",
-    "lib": ["es2016", "dom"],
-    "module": "es6",
-    "sourceMap": true,
-    "allowJs": false,
+    /* Base Options: */
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    /* Strictness */
     "strict": true,
-    "noEmit": true
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    "sourceMap": true,
+    "declaration": true,
+    "module": "preserve",
+    "noEmit": true,
+
+    "lib": ["es2022", "dom", "dom.iterable"],
   },
   "include": ["src/**/*"],
   "exclude": []
