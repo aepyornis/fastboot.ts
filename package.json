@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "build": "esbuild src/index.ts --bundle --sourcemap --format=esm --platform=browser --target=chrome132 --outfile=dist/fastboot.js"
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --sourcemap --format=esm --platform=browser --target=chrome132 --outfile=dist/fastboot.js"
   },
   "keywords": [],
   "author": "Ziggy, Calyx Institute",
@@ -15,7 +15,6 @@
     "@types/w3c-web-usb": "^1.0.10",
     "esbuild": "^0.27.2",
     "eslint": "^9.24.0",
-    "globals": "^17.0.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.29.1"
