@@ -3,7 +3,7 @@ import {
   BlobReader,
   BlobWriter,
   TextWriter,
-  Entry,
+  type FileEntry,
 } from "@zip.js/zip.js"
 import type { FastbootClient } from "./client"
 
@@ -21,15 +21,66 @@ type CommandName =
   | "continue"
   | "reboot"
   | "reboot-bootloader"
+  | "sleep"
+  | "oem"
   | "help"
+
+type SlotName = "current" | "other" | "a" | "b"
+
+type InstructionOptions = {
+  wipe?: boolean
+  setActive?: "other" | "a" | "b"
+  slot?: SlotName
+  skipReboot?: boolean
+  applyVbmeta?: boolean
+}
 
 type Instruction = {
   command: CommandName
   args: string[]
-  options: object
+  options: InstructionOptions
 }
 
-function getEntry(entries: Entry[], filename: string): Entry {
+const COMMAND_NAMES: ReadonlySet<string> = new Set([
+  "update",
+  "flashall",
+  "flash",
+  "flashing",
+  "erase",
+  "format",
+  "getvar",
+  "set_active",
+  "boot",
+  "devices",
+  "continue",
+  "reboot",
+  "reboot-bootloader",
+  "sleep",
+  "oem",
+  "help",
+])
+
+function isCommandName(word: string): word is CommandName {
+  return COMMAND_NAMES.has(word)
+}
+
+function isFileEntry(entry: { directory: boolean }): entry is FileEntry {
+  return !entry.directory
+}
+
+function requireArg(
+  command: CommandName,
+  args: string[],
+  index: number,
+): string {
+  const value = args[index]
+  if (!value) {
+    throw new Error(`Missing argument ${index + 1} for ${command}`)
+  }
+  return value
+}
+
+function getEntry(entries: FileEntry[], filename: string): FileEntry {
   const entry = entries.find(
     (e) => e.filename.split(/[\\/]/).pop() === filename,
   )
@@ -45,11 +96,14 @@ function parseInstruction(text: string): Instruction {
     text = text.slice(8).trim()
   }
 
-  let command: CommandName
-  const args = []
-  const options = {}
+  let command: CommandName | undefined
+  const args: string[] = []
+  const options: InstructionOptions = {}
 
-  const words = text.split(" ").map((x) => x.trim())
+  const words = text
+    .split(/\s+/)
+    .map((x) => x.trim())
+    .filter((x) => x !== "")
 
   for (const word of words) {
     if (word[0] === "-") {
@@ -58,15 +112,21 @@ function parseInstruction(text: string): Instruction {
       } else if (word === "--set-active=other") {
         options.setActive = "other"
       } else if (word === "--set-active=a" || word === "--set-active=b") {
-        options.setActive = word.slice(-1)
+        const slot = word.slice(-1)
+        if (slot === "a" || slot === "b") {
+          options.setActive = slot
+        }
       } else if (word === "--slot-other") {
         options.slot = "other"
       } else if (word.slice(0, 6) === "--slot") {
         const slot = word.split("=")[1]
+        if (!slot) {
+          throw new Error("--slot requires a value")
+        }
         if (!["current", "other", "a", "b"].includes(slot)) {
           throw new Error(`unknown slot: ${slot}`)
         }
-        options.slot = slot
+        options.slot = slot as SlotName
       } else if (word === "--skip-reboot") {
         options.skipReboot = true
       } else if (word === "--apply-vbmeta") {
@@ -78,9 +138,15 @@ function parseInstruction(text: string): Instruction {
       if (command) {
         args.push(word)
       } else {
+        if (!isCommandName(word)) {
+          throw new Error(`Unknown command: ${word}`)
+        }
         command = word
       }
     }
+  }
+  if (!command) {
+    throw new Error("Missing command")
   }
   return { command, args, options }
 }
@@ -96,7 +162,7 @@ function parseInstructions(text: string): Instruction[] {
 
 export class FastbootFlasher {
   client: FastbootClient
-  reader: ZipReader
+  reader: ZipReader<BlobReader>
 
   constructor(client: FastbootClient, blob: Blob) {
     this.client = client
@@ -106,7 +172,7 @@ export class FastbootFlasher {
   // parses and runs flash-all.sh. it ignores all shell commands
   // except fastboot or sleep
   async runFlashAll() {
-    const entries: Entry[] = await this.reader.getEntries()
+    const entries = (await this.reader.getEntries()).filter(isFileEntry)
     const flashAllSh = await getEntry(entries, "flash-all.sh").getData(
       new TextWriter(),
     )
@@ -121,16 +187,16 @@ export class FastbootFlasher {
     return this.run(instructions)
   }
 
-  async run(instructions: text) {
-    const entries: Entry[] = await this.reader.getEntries() // io with factory.zip
+  async run(instructions: string) {
+    const entries = (await this.reader.getEntries()).filter(isFileEntry) // io with factory.zip
     const commands: Instruction[] = parseInstructions(instructions)
 
     for (const command of commands) {
       this.client.logger.log(`‣ ${JSON.stringify(command)}`)
       if (command.command === "flash") {
-        const partition = command.args[0]
-        const filename = command.args[1]
-        const slot = command.options.slot || "current"
+        const partition = requireArg(command.command, command.args, 0)
+        const filename = requireArg(command.command, command.args, 1)
+        const slot = command.options.slot ?? "current"
         const entry = getEntry(entries, filename)
         const blob = await entry.getData(
           new BlobWriter("application/octet-stream"),
@@ -152,15 +218,19 @@ export class FastbootFlasher {
         }
         await this.client.rebootBootloader()
       } else if (command.command === "update") {
-        const nestedZipEntry = getEntry(entries, command.args[0])
+        const zipName = requireArg(command.command, command.args, 0)
+        const nestedZipEntry = getEntry(entries, zipName)
         const zipBlob = await nestedZipEntry.getData(
           new BlobWriter("application/zip"),
         )
         const zipReader = new ZipReader(new BlobReader(zipBlob))
-        const nestedEntries = await zipReader.getEntries()
+        const nestedEntries = (await zipReader.getEntries()).filter(isFileEntry)
         const fastbootInfoFile = nestedEntries.find(
           (e) => e.filename === "fastboot-info.txt",
         )
+        if (!fastbootInfoFile) {
+          throw new Error("fastboot-info.txt not found in nested zip")
+        }
         const fastbootInfoText = await fastbootInfoFile.getData(
           new TextWriter(),
         )
@@ -182,10 +252,12 @@ export class FastbootFlasher {
           throw new Error(`Unknown command`)
         }
       } else if (command.command === "getvar") {
-        const clientVar = await this.client.getVar(command.args[0])
-        this.client.logger(`getVar(${command.args[0]}) => ${clientVar}`)
+        const varName = requireArg(command.command, command.args, 0)
+        const clientVar = await this.client.getVar(varName)
+        this.client.logger.log(`getVar(${varName}) => ${clientVar}`)
       } else if (command.command === "erase") {
-        await this.client.erase(command.args[0])
+        const partition = requireArg(command.command, command.args, 0)
+        await this.client.erase(partition)
       } else if (command.command === "sleep") {
         const ms = command.args[0] ? parseInt(command.args[0]) * 1000 : 5000
         await new Promise((resolve) => setTimeout(resolve, ms))

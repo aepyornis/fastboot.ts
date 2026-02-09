@@ -4,7 +4,7 @@
   "description": "Fastboot using WebUSB",
   "main": "src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "type-check": "tsc --noEmit",
     "build": "esbuild src/index.ts --bundle --sourcemap --format=esm --platform=browser --target=chrome132 --outfile=dist/fastboot.js"
   },
   "keywords": [],

@@ -41,8 +41,8 @@ export class FastbootDeviceError extends Error {
 export class FastbootDevice {
   device: USBDevice
   serialNumber: string;
-  in: USBEndpoint
-  out: USBEndpoint
+  in!: USBEndpoint
+  out!: USBEndpoint
   session: FastbootSession
   sessions: FastbootSession[]
   logger: Logger
@@ -72,13 +72,13 @@ export class FastbootDevice {
 
     // this.in = this.device.configurations[0].interfaces[0].alternate.endpoints[0]
     const endpoints =
-      this.device.configurations[0].interfaces[0].alternate.endpoints
+      this.device.configurations[0]?.interfaces[0]?.alternate.endpoints
 
-    if (endpoints.length !== 2) {
+    if (endpoints && endpoints.length !== 2) {
       throw new Error("USB Interface must have only 2 endpoints")
     }
 
-    for (const endpoint of endpoints) {
+    for (const endpoint of endpoints ?? []) {
       if (endpoint.direction === "in") {
         this.in = endpoint
       } else if (endpoint.direction === "out") {
@@ -117,9 +117,10 @@ export class FastbootDevice {
   // install and reset the usb device after it reconnects
   async waitForReconnect(): Promise<boolean> {
     try {
-      this.logger("waitForReconnect try reconnect()")
+      this.logger.log("waitForReconnect try reconnect()")
       return await this.reconnect()
     } catch (e) {
+      console.error(e)
       this.logger.log("waitForReconnect wait 3 seconds")
       await new Promise((resolve) => setTimeout(resolve, 3000))
     }
@@ -157,6 +158,8 @@ export class FastbootDevice {
         })
       }
     }
+
+    return false // TODO: Assume that return false if all else fails
   }
 
   async getPacket(): Promise<ResponsePacket> {
@@ -202,21 +205,22 @@ export class FastbootDevice {
     this.logger.log(
       `transfering "${text}" to endpoint ${this.out.endpointNumber}`,
     )
-    const result: USBOutTransferResult = await this.device.transferOut(
-      this.out.endpointNumber,
-      outPacket,
-    )
+    await this.device.transferOut(this.out.endpointNumber, outPacket)
 
     await this.getPackets()
 
-    if (this.lastPacket.status === "FAIL") {
+    if (
+      this.lastPacket &&
+      "status" in this.lastPacket &&
+      this.lastPacket.status === "FAIL"
+    ) {
       this.session.status = "FAIL"
       throw new FastbootDeviceError(
         this.lastPacket.status,
-        this.lastPacket.message,
+        this.lastPacket.message ?? "",
       )
     } else {
-      return this.lastPacket
+      return this.lastPacket as ResponsePacket // TODO: Fix bad assertion
     }
   }
 
@@ -235,7 +239,11 @@ export class FastbootDevice {
 
   async getVar(variable: string): Promise<string> {
     await this.exec(`getvar:${variable}`)
-    return this.lastPacket.message
+
+    if (this.lastPacket && "message" in this.lastPacket) {
+      return this.lastPacket.message ?? ""
+    }
+    return ""
   }
 
   get lastPacket() {
@@ -250,7 +258,11 @@ export class FastbootDevice {
     if (this.session.packets.length === 0) {
       return false
     } else {
-      return !["FAIL", "OKAY"].includes(this.lastPacket.status)
+      return (
+        this.lastPacket &&
+        "status" in this.lastPacket &&
+        !["FAIL", "OKAY"].includes(this.lastPacket.status)
+      )
     }
   }
 
