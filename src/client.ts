@@ -268,8 +268,7 @@ export class FastbootClient {
     try {
       superName = await this.getVar("super-partition-name")
     } catch (err) {
-      // TODO: Maybe log this error somewhere?
-      void err
+      console.debug(err)
     }
 
     // fastboot-info does this
