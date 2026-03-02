@@ -5,7 +5,7 @@ import {
   TextWriter,
   type FileEntry,
 } from "@zip.js/zip.js"
-import type { FastbootClient } from "./client"
+import type { FastbootClient } from "./client.js"
 
 type CommandName =
   | "update"

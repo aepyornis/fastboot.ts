@@ -15,10 +15,10 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
 
+    "module": "NodeNext",
+    "outDir": "dist",
     "sourceMap": true,
     "declaration": true,
-    "module": "preserve",
-    "noEmit": true,
 
     "lib": ["es2022", "dom", "dom.iterable"],
   },

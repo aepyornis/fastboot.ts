@@ -2,10 +2,12 @@
   "name": "@aepyornis/fastboot.ts",
   "version": "0.0.15",
   "description": "Fastboot using WebUSB",
+  "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "build": "tsc --noEmit && esbuild src/index.ts --bundle --sourcemap --format=esm --platform=browser --target=chrome132 --outfile=dist/fastboot.js"
+    "tsc": "tsc",
+    "esbuild": "tsc --noEmit && esbuild src/index.ts --bundle --sourcemap --format=esm --platform=browser --target=chrome132 --outfile=dist/fastboot.js"
   },
   "keywords": [],
   "author": "Ziggy, Calyx Institute",

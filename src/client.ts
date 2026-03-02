@@ -1,7 +1,7 @@
 import { BlobWriter, type FileEntry } from "@zip.js/zip.js"
-import { IMAGES } from "./images"
-import { parseBlobHeader, splitBlob, fromRaw } from "./sparse"
-import { FastbootDevice } from "./device"
+import { IMAGES } from "./images.js"
+import { parseBlobHeader, splitBlob, fromRaw } from "./sparse.js"
+import { FastbootDevice } from "./device.js"
 
 export class FastbootError extends Error {}
 
