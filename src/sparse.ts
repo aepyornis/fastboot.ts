@@ -150,9 +150,7 @@ function calcChunksBlockSize(chunks: Array<SparseChunk>) {
 }
 
 function calcChunksDataSize(chunks: Array<SparseChunk>) {
-  return chunks
-    .map((chunk) => chunk.data!.size)
-    .reduce((total, c) => total + c, 0)
+  return chunks.map((chunk) => chunk.data!.size).reduce((total, c) => total + c, 0)
 }
 
 function calcChunksSize(chunks: Array<SparseChunk>) {
@@ -161,10 +159,7 @@ function calcChunksSize(chunks: Array<SparseChunk>) {
   return overhead + calcChunksDataSize(chunks)
 }
 
-async function createImage(
-  header: SparseHeader,
-  chunks: Array<SparseChunk>,
-): Promise<Blob> {
+async function createImage(header: SparseHeader, chunks: Array<SparseChunk>): Promise<Blob> {
   const blobBuilder = new BlobBuilder()
 
   let buffer = new ArrayBuffer(FILE_HEADER_SIZE)
@@ -246,9 +241,7 @@ export async function fromRaw(blob: Blob): Promise<Blob> {
  * @yields {Object} Data of the next split image and its output size in bytes.
  */
 export async function* splitBlob(blob: Blob, splitSize: number) {
-  console.debug(
-    `Splitting ${blob.size}-byte sparse image into ${splitSize}-byte chunks`,
-  )
+  console.debug(`Splitting ${blob.size}-byte sparse image into ${splitSize}-byte chunks`)
 
   // 7/8 is a safe value for the split size, to account for extra overhead
   // AOSP source code does the same
@@ -280,10 +273,7 @@ export async function* splitBlob(blob: Blob, splitSize: number) {
   for (let i = 0; i < header.chunks; i++) {
     const chunkHeaderData = await blob.slice(0, CHUNK_HEADER_SIZE).arrayBuffer()
     const originalChunk = parseChunkHeader(chunkHeaderData)
-    originalChunk.data = blob.slice(
-      CHUNK_HEADER_SIZE,
-      CHUNK_HEADER_SIZE + originalChunk.dataBytes,
-    )
+    originalChunk.data = blob.slice(CHUNK_HEADER_SIZE, CHUNK_HEADER_SIZE + originalChunk.dataBytes)
     blob = blob.slice(CHUNK_HEADER_SIZE + originalChunk.dataBytes)
 
     const chunksToProcess: SparseChunk[] = []
@@ -346,9 +336,7 @@ export async function* splitBlob(blob: Blob, splitSize: number) {
           }, finishing split with ${calcChunksBlockSize(splitChunks)} blocks`,
         )
         const splitImage = await createImage(header, splitChunks)
-        console.debug(
-          `Finished ${splitImage.size}-byte split with ${splitChunks.length} chunks`,
-        )
+        console.debug(`Finished ${splitImage.size}-byte split with ${splitChunks.length} chunks`)
         yield {
           data: await splitImage.arrayBuffer(),
           bytes: splitDataBytes,
@@ -356,9 +344,7 @@ export async function* splitBlob(blob: Blob, splitSize: number) {
 
         // Start a new split. Every split is considered a full image by the
         // bootloader, so we need to skip the *total* written blocks.
-        console.debug(
-          `Starting new split: skipping first ${splitBlocks} blocks and adding chunk`,
-        )
+        console.debug(`Starting new split: skipping first ${splitBlocks} blocks and adding chunk`)
         splitChunks = [
           {
             type: ChunkType.Skip,
@@ -380,9 +366,7 @@ export async function* splitBlob(blob: Blob, splitSize: number) {
     (splitChunks.length > 1 || splitChunks[0]?.type !== ChunkType.Skip)
   ) {
     const splitImage = await createImage(header, splitChunks)
-    console.debug(
-      `Finishing final ${splitImage.size}-byte split with ${splitChunks.length} chunks`,
-    )
+    console.debug(`Finishing final ${splitImage.size}-byte split with ${splitChunks.length} chunks`)
     yield {
       data: await splitImage.arrayBuffer(),
       bytes: splitDataBytes,

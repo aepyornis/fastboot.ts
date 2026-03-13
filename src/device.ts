@@ -19,9 +19,7 @@ interface Logger {
 }
 
 export class FastbootUsbConnectionError extends Error {
-  constructor(
-    message: string = "Could not find device in navigator.usb.getDevices()",
-  ) {
+  constructor(message: string = "Could not find device in navigator.usb.getDevices()") {
     super(message)
     this.name = "FastbootUsbConnectionError"
   }
@@ -40,7 +38,7 @@ export class FastbootDeviceError extends Error {
 // implements the fastboot protocol over WebUSB
 export class FastbootDevice {
   device: USBDevice
-  serialNumber: string;
+  serialNumber: string
   in!: USBEndpoint
   out!: USBEndpoint
   session: FastbootSession
@@ -71,8 +69,7 @@ export class FastbootDevice {
     }
 
     // this.in = this.device.configurations[0].interfaces[0].alternate.endpoints[0]
-    const endpoints =
-      this.device.configurations[0]?.interfaces[0]?.alternate.endpoints
+    const endpoints = this.device.configurations[0]?.interfaces[0]?.alternate.endpoints
 
     if (endpoints && endpoints.length !== 2) {
       throw new Error("USB Interface must have only 2 endpoints")
@@ -202,23 +199,14 @@ export class FastbootDevice {
   async sendCommand(text: string): Promise<ResponsePacket> {
     this.session.packets.push({ command: text } as CommandPacket)
     const outPacket = new TextEncoder().encode(text)
-    this.logger.log(
-      `transfering "${text}" to endpoint ${this.out.endpointNumber}`,
-    )
+    this.logger.log(`transfering "${text}" to endpoint ${this.out.endpointNumber}`)
     await this.device.transferOut(this.out.endpointNumber, outPacket)
 
     await this.getPackets()
 
-    if (
-      this.lastPacket &&
-      "status" in this.lastPacket &&
-      this.lastPacket.status === "FAIL"
-    ) {
+    if (this.lastPacket && "status" in this.lastPacket && this.lastPacket.status === "FAIL") {
       this.session.status = "FAIL"
-      throw new FastbootDeviceError(
-        this.lastPacket.status,
-        this.lastPacket.message ?? "",
-      )
+      throw new FastbootDeviceError(this.lastPacket.status, this.lastPacket.message ?? "")
     } else {
       return this.lastPacket as ResponsePacket // TODO: Fix bad assertion
     }
@@ -298,10 +286,7 @@ export class FastbootDevice {
     let i = 0
     let remainingBytes = buffer.byteLength
     while (remainingBytes > 0) {
-      const chunk = buffer.slice(
-        i * BULK_TRANSFER_SIZE,
-        (i + 1) * BULK_TRANSFER_SIZE,
-      )
+      const chunk = buffer.slice(i * BULK_TRANSFER_SIZE, (i + 1) * BULK_TRANSFER_SIZE)
       if (i % 1000 === 0) {
         this.logger.log(
           `Sending ${chunk.byteLength} bytes to endpoint, ${remainingBytes} remaining, i=${i}`,

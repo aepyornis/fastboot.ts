@@ -1,10 +1,4 @@
-import {
-  ZipReader,
-  BlobReader,
-  BlobWriter,
-  TextWriter,
-  type FileEntry,
-} from "@zip.js/zip.js"
+import { ZipReader, BlobReader, BlobWriter, TextWriter, type FileEntry } from "@zip.js/zip.js"
 import type { FastbootClient } from "./client.js"
 
 type CommandName =
@@ -68,11 +62,7 @@ function isFileEntry(entry: { directory: boolean }): entry is FileEntry {
   return !entry.directory
 }
 
-function requireArg(
-  command: CommandName,
-  args: string[],
-  index: number,
-): string {
+function requireArg(command: CommandName, args: string[], index: number): string {
   const value = args[index]
   if (!value) {
     throw new Error(`Missing argument ${index + 1} for ${command}`)
@@ -81,9 +71,7 @@ function requireArg(
 }
 
 function getEntry(entries: FileEntry[], filename: string): FileEntry {
-  const entry = entries.find(
-    (e) => e.filename.split(/[\\/]/).pop() === filename,
-  )
+  const entry = entries.find((e) => e.filename.split(/[\\/]/).pop() === filename)
   if (entry) {
     return entry
   } else {
@@ -173,9 +161,7 @@ export class FastbootFlasher {
   // except fastboot or sleep
   async runFlashAll() {
     const entries = (await this.reader.getEntries()).filter(isFileEntry)
-    const flashAllSh = await getEntry(entries, "flash-all.sh").getData(
-      new TextWriter(),
-    )
+    const flashAllSh = await getEntry(entries, "flash-all.sh").getData(new TextWriter())
 
     this.client.logger.log("flash-all.sh\n" + flashAllSh)
     const instructions = flashAllSh
@@ -198,16 +184,9 @@ export class FastbootFlasher {
         const filename = requireArg(command.command, command.args, 1)
         const slot = command.options.slot ?? "current"
         const entry = getEntry(entries, filename)
-        const blob = await entry.getData(
-          new BlobWriter("application/octet-stream"),
-        )
+        const blob = await entry.getData(new BlobWriter("application/octet-stream"))
 
-        await this.client.doFlash(
-          partition,
-          blob,
-          slot,
-          Boolean(command.options.applyVbmeta),
-        )
+        await this.client.doFlash(partition, blob, slot, Boolean(command.options.applyVbmeta))
       } else if (command.command === "reboot-bootloader") {
         if (command.options.setActive === "other") {
           await this.client.setActiveOtherSlot()
@@ -220,20 +199,14 @@ export class FastbootFlasher {
       } else if (command.command === "update") {
         const zipName = requireArg(command.command, command.args, 0)
         const nestedZipEntry = getEntry(entries, zipName)
-        const zipBlob = await nestedZipEntry.getData(
-          new BlobWriter("application/zip"),
-        )
+        const zipBlob = await nestedZipEntry.getData(new BlobWriter("application/zip"))
         const zipReader = new ZipReader(new BlobReader(zipBlob))
         const nestedEntries = (await zipReader.getEntries()).filter(isFileEntry)
-        const fastbootInfoFile = nestedEntries.find(
-          (e) => e.filename === "fastboot-info.txt",
-        )
+        const fastbootInfoFile = nestedEntries.find((e) => e.filename === "fastboot-info.txt")
         if (!fastbootInfoFile) {
           throw new Error("fastboot-info.txt not found in nested zip")
         }
-        const fastbootInfoText = await fastbootInfoFile.getData(
-          new TextWriter(),
-        )
+        const fastbootInfoText = await fastbootInfoFile.getData(new TextWriter())
 
         this.client.logger.log(`fastboot-info.txt: ${fastbootInfoText}`)
 
@@ -264,15 +237,10 @@ export class FastbootFlasher {
         // do_oem_command in cpp is raw command?
       } else if (command.command === "oem") {
         // ignore motorola oem commands that do nothing useful?
-        if (
-          command.args[0] === "fb_mode_set" ||
-          command.args[0] === "fb_mode_clear"
-        ) {
+        if (command.args[0] === "fb_mode_set" || command.args[0] === "fb_mode_clear") {
           await new Promise((resolve) => setTimeout(resolve, 10))
         } else {
-          throw new Error(
-            `Fastboot oem command ${command.args[0]} not implemented`,
-          )
+          throw new Error(`Fastboot oem command ${command.args[0]} not implemented`)
         }
       } else {
         throw new Error(`Fastboot command ${command.command} not implemented`)

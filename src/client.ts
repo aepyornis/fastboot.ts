@@ -90,10 +90,7 @@ export class FastbootClient {
   ) {
     // add _a or _b
     //    !(await this.isUserspace()) ?
-    if (
-      partition !== "avb_custom_key" &&
-      (await this.getVar(`has-slot:${partition}`)) === "yes"
-    ) {
+    if (partition !== "avb_custom_key" && (await this.getVar(`has-slot:${partition}`)) === "yes") {
       if (slot === "current") {
         partition += "_" + (await this.currentSlot())
       } else if (slot === "other") {
@@ -110,10 +107,7 @@ export class FastbootClient {
     // should_flash_in_userspace() ?
     // Logical partitions need to be resized before flashing because
     // they're sized perfectly to the payload.
-    if (
-      (await this.isUserspace()) &&
-      (await this.getVar(`is-logical:${partition}`)) === "yes"
-    ) {
+    if ((await this.isUserspace()) && (await this.getVar(`is-logical:${partition}`)) === "yes") {
       await this.resizePartition(partition, totalBytes)
     }
 
@@ -124,9 +118,7 @@ export class FastbootClient {
       blob = await fromRaw(blob)
     }
 
-    this.logger.log(
-      `Flashing ${totalBytes} bytes to ${partition} w/ max ${max} bytes per split`,
-    )
+    this.logger.log(`Flashing ${totalBytes} bytes to ${partition} w/ max ${max} bytes per split`)
 
     let splits = 0
     let sentBytes = 0
@@ -140,9 +132,7 @@ export class FastbootClient {
         `${partition} #${splits}) sent ${split.bytes} bytes. ${sentBytes}/${blobSize}`,
       )
     }
-    this.logger.log(
-      `Flashed ${partition} with ${splits} split(s). Bytes sent: ${sentBytes}`,
-    )
+    this.logger.log(`Flashed ${partition} with ${splits} split(s). Bytes sent: ${sentBytes}`)
   }
 
   // fb->ResizePartition
@@ -167,11 +157,7 @@ export class FastbootClient {
   }
 
   // run text, typically the contents of fastboot-info.txt
-  async fastbootInfo(
-    entries: FileEntry[],
-    text: string,
-    wipe: boolean = false,
-  ) {
+  async fastbootInfo(entries: FileEntry[], text: string, wipe: boolean = false) {
     const lines = text
       .split("\n")
       .map((x) => x.trim())
@@ -202,9 +188,7 @@ export class FastbootClient {
           }
 
           if (filename === null) {
-            filename = IMAGES.find(
-              (img) => img["nickname"] === partition,
-            )?.img_name
+            filename = IMAGES.find((img) => img["nickname"] === partition)?.img_name
             if (!filename) {
               throw new Error(`Unknown partition: ${partition}`)
             }
@@ -217,12 +201,8 @@ export class FastbootClient {
             )
           }
           this.logger.log(`Extracting ${filename}`)
-          const blob = await entry.getData(
-            new BlobWriter("application/octet-stream"),
-          )
-          this.logger.log(
-            `flashing partition ${partition} with ${filename} from nested zip`,
-          )
+          const blob = await entry.getData(new BlobWriter("application/octet-stream"))
+          this.logger.log(`flashing partition ${partition} with ${filename} from nested zip`)
           await this.doFlash(
             partition!, // TODO: Assert this better
             blob,
@@ -257,9 +237,7 @@ export class FastbootClient {
   }
 
   async updateSuper(entries: FileEntry[], wipe: boolean) {
-    const superEmptyImage = entries.find(
-      (e) => e.filename === "super_empty.img",
-    )
+    const superEmptyImage = entries.find((e) => e.filename === "super_empty.img")
     if (!superEmptyImage) {
       throw new FastbootError(`super_empty.img not found`)
     }
@@ -274,9 +252,7 @@ export class FastbootClient {
     // fastboot-info does this
     // await this.rebootFastboot()
 
-    const blob = await superEmptyImage.getData(
-      new BlobWriter("application/octet-stream"),
-    )
+    const blob = await superEmptyImage.getData(new BlobWriter("application/octet-stream"))
     const buffer = await blob.arrayBuffer()
 
     await this.fd.transferData(buffer)
@@ -331,9 +307,7 @@ export class FastbootClient {
     } else if (currentSlot === "b") {
       return "a"
     } else {
-      throw new Error(
-        `Unable to determine other slot, current slot: ${currentSlot}`,
-      )
+      throw new Error(`Unable to determine other slot, current slot: ${currentSlot}`)
     }
   }
 
