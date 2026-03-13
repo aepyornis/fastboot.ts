@@ -13,12 +13,12 @@
   "author": "Ziggy, Calyx Institute",
   "license": "MIT",
   "devDependencies": {
-    "@types/w3c-web-usb": "^1.0.10",
+    "@types/w3c-web-usb": "^1.0.14",
     "esbuild": "^0.27.2",
-    "prettier": "^3.5.3",
-    "typescript": "^5.8.3"
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@zip.js/zip.js": "^2.7.60"
+    "@zip.js/zip.js": "^2.8.26"
   }
 }
