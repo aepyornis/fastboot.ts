@@ -94,8 +94,8 @@ export class FastbootDevice {
     await this.device.claimInterface(0)
   }
 
-  // some commands (like "flashing lock") will disconnect the device
-  // we have to re-assign this.device after it reconnects
+  // After a reboot, the USBDevice object to go stale. We have to wait
+  // for the device to appear in getDevices() and re-open it.
   async reconnect(): Promise<boolean> {
     const devices = await navigator.usb.getDevices()
     for (const device of devices) {
@@ -110,8 +110,8 @@ export class FastbootDevice {
     throw new FastbootUsbConnectionError()
   }
 
-  // The install requires reboots and it's important we pause the
-  // install and reset the usb device after it reconnects
+  // Some commands (like "flashing lock") will disconnect the device
+  // we have to wait for it to be reconnected.
   async waitForReconnect(): Promise<boolean> {
     try {
       this.logger.log("waitForReconnect try reconnect()")
@@ -156,7 +156,49 @@ export class FastbootDevice {
       }
     }
 
-    return false // TODO: Assume that return false if all else fails
+    return false
+  }
+
+  // During the install, the device reboots into fastbootd. Fastbootd
+  // mode can be considered a seperate device from the perspective of
+  // WebUSB and we may have to use navigator.usb.requestDevice which
+  // requies user action and permission.
+  async waitForReconnectFastboot(userAction: () => Promise<void>): Promise<boolean> {
+    try {
+      this.logger.log("waitForReconnectFastboot try reconnect()")
+      return await this.reconnect()
+    } catch (e) {
+      console.error(e)
+      this.logger.log("waitForReconnectFastboot wait 3 seconds")
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+    }
+
+    try {
+      return await this.reconnect()
+    } catch (e) {
+      if (e instanceof FastbootUsbConnectionError) {
+        console.error(e)
+        this.logger.log("waitForReconnectFastboot wait 30 seconds")
+        await new Promise((resolve) => setTimeout(resolve, 30000))
+      } else {
+        throw e
+      }
+    }
+
+    try {
+      return await this.reconnect()
+    } catch (e) {
+      console.error(e)
+      try {
+        await userAction()
+        this.logger.log("waitForReconnectFastboot after user action")
+        return await this.reconnect()
+      } catch (e) {
+        console.error(e)
+        this.logger.log("waitForReconnectFastboot reconnect() failed after user action")
+        return false
+      }
+    }
   }
 
   async getPacket(): Promise<ResponsePacket> {

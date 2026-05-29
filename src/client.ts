@@ -78,8 +78,8 @@ export class FastbootClient {
   async rebootFastboot() {
     this.logger.log("rebooting into fastboot")
     await this.fd.exec("reboot-fastboot")
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    await this.fd.waitForReconnect()
+    await new Promise((resolve) => setTimeout(resolve, 5000))
+    await this.fd.waitForReconnectFastboot(() => FastbootClient.requestUsbDevice())
   }
 
   async doFlash(
