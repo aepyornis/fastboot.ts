@@ -27,11 +27,14 @@ export class FastbootClient {
   fd: FastbootDevice
   logger: Logger
   var_cache: KeyValueDict
+  reconnectUserAction: () => Promise<void>
+
 
   constructor(usb_device: USBDevice, logger: Logger = window.console) {
     this.fd = new FastbootDevice(usb_device, logger)
     this.logger = logger
     this.var_cache = {} as KeyValueDict
+    this.reconnectUserAction = () => FastbootClient.requestUsbDevice()
   }
 
   async getVar(variable: string) {
@@ -79,7 +82,7 @@ export class FastbootClient {
     this.logger.log("rebooting into fastboot")
     await this.fd.exec("reboot-fastboot")
     await new Promise((resolve) => setTimeout(resolve, 5000))
-    await this.fd.waitForReconnectFastboot(() => FastbootClient.requestUsbDevice())
+    await this.fd.waitForReconnectFastboot(this.reconnectUserAction)
   }
 
   async doFlash(
