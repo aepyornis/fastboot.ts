@@ -9,22 +9,24 @@ default:
   cache:
     key:
       files:
-        - package-lock.json
+        - pnpm-lock.yaml
     paths:
-      - .npm/
+      - .pnpm-store
   before_script:
-    - npm ci --cache .npm
+    - npm install -g pnpm
+    - pnpm config set store-dir .pnpm-store
+    - pnpm install
 
 lint:
   stage: test
   script:
-    - npm run lint
-    - npm run type-check
+    - pnpm run lint
+    - pnpm run type-check
 
 build:
   stage: build
   script:
-    - npm run build
+    - pnpm run build
   artifacts:
     paths:
       - dist/
