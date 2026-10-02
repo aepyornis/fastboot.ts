@@ -5,15 +5,15 @@ import { FastbootDevice } from "./device.js"
 
 export class FastbootError extends Error {}
 
-const FastbootUSBDeviceFilter = {
+const FastbootUSBDeviceFilter: USBDeviceFilter = {
   classCode: 0xff,
   subclassCode: 0x42,
   protocolCode: 0x03,
 }
 
-const MotorolaProducts = ["fogo", "fogos", "bangkk", "rhode", "hawao", "devon"]
+const MotorolaProducts: readonly string[] = ["fogo", "fogos", "bangkk", "rhode", "hawao", "devon"]
 
-const antiRollbackDowngradeRegex = /(\S+) anti rollback downgrade, (\d+) vs (\d+)/i
+const AntiRollbackDowngradeRegex = /(\S+) anti rollback downgrade, (\d+) vs (\d+)/i
 
 interface Logger {
   log(message: string): void
@@ -31,6 +31,13 @@ export class FastbootClient {
   var_cache: KeyValueDict
   reconnectUserAction: () => Promise<unknown>
   rollbackDowngrade: boolean
+  rollbackWarnPartition: string | undefined
+  rollbackImageIndex: string | undefined
+  rollbackStoredIndex: string | undefined
+
+  static FastbootUSBDeviceFilter = FastbootUSBDeviceFilter
+  static readonly MotorolaProducts = MotorolaProducts
+  static readonly AntiRollbackDowngradeRegex = AntiRollbackDowngradeRegex
 
   constructor(usb_device: USBDevice, logger: Logger = window.console) {
     this.fd = new FastbootDevice(usb_device, logger)
@@ -92,7 +99,7 @@ export class FastbootClient {
     partition: string,
     blob: Blob,
     slot: "current" | "other" | "a" | "b" = "current",
-    applyVbmeta: boolean = false, // TODO: Implement flashing vbmeta
+    _applyVbmeta: boolean = false, // TODO: Implement flashing vbmeta
   ) {
     // add _a or _b
     //    !(await this.isUserspace()) ?
@@ -104,7 +111,7 @@ export class FastbootClient {
       } else if (slot === "a" || slot === "b") {
         partition += "_" + slot
       } else {
-        throw new FastbootError(`Unknown Slot: ${slot}`)
+        throw new FastbootError(`Unknown Slot`)
       }
     }
 
@@ -145,10 +152,13 @@ export class FastbootClient {
         for (const packet of this.fd.session.packets.slice(packetsBefore)) {
           // Test if INFO packet contains rollback message
           if ("status" in packet && packet.status === "INFO" && packet.message) {
-            const match = packet.message.match(antiRollbackDowngradeRegex)
+            const match = packet.message.match(AntiRollbackDowngradeRegex)
             if (match) {
               const [, warnPartition, imageIndex, storedIndex] = match
               this.rollbackDowngrade = true
+              this.rollbackWarnPartition = warnPartition
+              this.rollbackImageIndex = imageIndex
+              this.rollbackStoredIndex = storedIndex
               this.logger.log(
                 `${warnPartition}: rollback index ${imageIndex} < stored ${storedIndex}`,
               )

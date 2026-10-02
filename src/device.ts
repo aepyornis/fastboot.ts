@@ -81,7 +81,7 @@ export class FastbootDevice {
       } else if (endpoint.direction === "out") {
         this.out = endpoint
       } else {
-        throw new Error(`Endpoint error: ${endpoint}`)
+        throw new Error(`Endpoint direction error`)
       }
     }
   }
