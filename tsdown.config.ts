@@ -1,4 +1,4 @@
-import { defineConfig } from "tsdown";
+import { defineConfig } from "tsdown"
 
 export default defineConfig({
   entry: { fastboot: "src/index.ts" },
@@ -8,4 +8,4 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-});
+})

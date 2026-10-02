@@ -1,6 +1,6 @@
 {
   "name": "@calyxos/fastboot.ts",
-  "version": "0.0.18-rc.4",
+  "version": "0.0.18-rc.5",
   "description": "Fastboot using WebUSB",
   "keywords": [],
   "license": "MIT",
@@ -17,7 +17,7 @@
     "import": "./dist/fastboot.js"
   },
   "scripts": {
-    "build": "npm run type-check && tsdown",
+    "build": "tsc --noEmit && tsdown",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --type-aware",
@@ -26,14 +26,14 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@zip.js/zip.js": "^2.8.57"
+    "@zip.js/zip.js": "^2.22.0"
   },
   "devDependencies": {
     "@types/w3c-web-usb": "^1.0.14",
-    "oxfmt": "^0.64.0",
-    "oxlint": "^1.79.0",
-    "oxlint-tsgolint": "^7.0.2001",
-    "tsdown": "^0.22.14",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "oxlint-tsgolint": "^7.0.2003",
+    "tsdown": "^0.23.0",
     "typescript": "^6.0.3"
   }
 }

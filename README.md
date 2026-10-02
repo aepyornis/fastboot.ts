@@ -3,8 +3,8 @@
 Android Fastboot implementation for WebUSB
 
 ```sh
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
     src/device.ts handles interfacing with WebUSB and implements fastboot protocol
